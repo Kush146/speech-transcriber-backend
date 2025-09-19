@@ -1,0 +1,1 @@
+export async function transcribe(){return { text:'Demo transcription (mock). Switch provider for real results.', duration:null }}
