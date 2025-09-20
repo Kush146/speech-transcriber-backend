@@ -2,28 +2,30 @@ import axios from 'axios';
 import FormData from 'form-data';
 import fs from 'fs';
 
-const LOCAL_WHISPER_URL = process.env.LOCAL_WHISPER_URL || 'http://127.0.0.1:7860';
+const LOCAL_WHISPER_URL = process.env.LOCAL_WHISPER_URL;
 
-export async function transcribeLocal(filePath) {
+export async function transcribeLocal({ filePath }) {
+  if (!LOCAL_WHISPER_URL) {
+    throw new Error('LOCAL_WHISPER_URL is not set');
+  }
+
   const form = new FormData();
-  // MUST be 'file' to match Flask
+  // Flask expects "file"
   form.append('file', fs.createReadStream(filePath));
 
+  const url = `${LOCAL_WHISPER_URL}/transcribe`;
+  console.log('[local] POST', url);
+
   try {
-    const r = await axios.post(`${LOCAL_WHISPER_URL}/transcribe`, form, {
+    const r = await axios.post(url, form, {
       headers: form.getHeaders(),
       maxBodyLength: Infinity,
-      timeout: 120000, // 2 minutes
+      timeout: 300000, // 5 minutes (model can take time to load on free tier)
     });
-
-    // Normalize output so frontend always gets consistent fields
-    return {
-      text: r.data.text || '',
-      language: r.data.language || 'unknown',
-      duration: r.data.duration || null,
-    };
+    return r.data; // { text, language, duration }
   } catch (err) {
-    console.error('Local Whisper error:', err.response?.data || err.message);
+    const msg = err.response?.data || err.message;
+    console.error('[local] whisper error:', msg);
     throw new Error(err.response?.data?.error || 'Local whisper failed');
   }
 }
