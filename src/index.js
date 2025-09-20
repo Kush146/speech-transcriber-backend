@@ -16,10 +16,20 @@ const ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:5173'
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, '..', 'uploads')
 fs.mkdirSync(UPLOAD_DIR, { recursive: true })
 
-app.use(cors({ origin: ORIGIN }))
+
+
+
+const allowed = [
+  'http://localhost:5173',
+  'https://speech-transcriber-frontend.vercel.app',
+]
+app.use(cors({ origin: allowed, credentials: true }))
 app.use(express.json())
 
-app.get('/api/health', (req, res) => res.json({ ok: true }))
+// --- Health + root (must return 200)
+app.get('/', (_req, res) => res.send('OK'))
+app.get('/api/health', (_req, res) => res.json({ ok: true, uptime: process.uptime() }))
+
 
 // DB
 const uri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/speech_transcriber'
@@ -28,6 +38,15 @@ mongoose.connect(uri).then(() => console.log('MongoDB connected:', uri)).catch(e
   process.exit(1)
 })
 
+process.on('unhandledRejection', err => {
+  console.error('UNHANDLED REJECTION', err)
+  process.exit(1)
+})
+process.on('uncaughtException', err => {
+  console.error('UNCAUGHT EXCEPTION', err)
+  process.exit(1)
+})
 app.use('/api', routes)
 
 app.listen(PORT, () => console.log(`Server on http://localhost:${PORT}`))
+
